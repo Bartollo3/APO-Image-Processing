@@ -1,8 +1,10 @@
 import tkinter as tk
+from tkinter import filedialog
 import numpy as np
 import os
 import cv2
 from PIL import ImageTk, Image, ImageOps
+from Morphological import Morphological
 
 def cv2_to_tk(image):
     if image is None:
@@ -67,6 +69,11 @@ class ImageWindow(tk.Toplevel):
         file_menu.add_separator()
         file_menu.add_command(label="Zamknij", command=self.destroy)
         menu.add_cascade(label="Plik", menu=file_menu)
+
+        # Menu Morfologia
+        file_menu = tk.Menu(menu, tearoff=0)
+        file_menu.add_command(label="Rekonstrukcja morfologiczna", command = Morphological.reconstructionDialog)
+        menu.add_cascade(label = "Morfologia", menu = file_menu)
 
         self.config(menu=menu)
 
