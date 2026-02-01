@@ -65,6 +65,23 @@ class ImageWindow(tk.Toplevel):
                 self.after_cancel(self._resize_after_id)
             self._resize_after_id = self.after(200, self.update_image)
 
+    def _check_compat(self, img1, img2):
+        if img1 is None or img2 is None:
+            return False, "Brak obrazu"
+        try:
+            h1, w1 = img1.shape[:2]
+            h2, w2 = img2.shape[:2]
+        except Exception:
+            return False, "Nieprawidłowy format obrazu"
+        if (h1, w1) != (h2, w2):
+            return False, "Rozmiary obrazów nie są zgodne"
+        return True, ""
+
+    def ensure_grayscale(self, image):
+        if len(image.shape) == 3:
+            return cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+        return image
+
     def create_menu(self):
         menu = tk.Menu(self)
 
@@ -108,9 +125,21 @@ class ImageWindow(tk.Toplevel):
         point_menu = tk.Menu(menu, tearoff=0)
         point_menu.add_command(label="Negacja", command=Point.apply_negative)
         point_menu.add_command(label="Redukcja poziomów szarości", command=Point.reduce_gray_levels)
-
         #Wieloargumentowe (dodawanie, mnożenie, dzielenie, różnica bezwzględna)
-
+        point_menu.add_separator()
+        point_menu.add_command(label="Dodaj obraz(y) (bez obcięć)", command=Point.add_image_no_clip)
+        point_menu.add_command(label="Dodaj obraz(y) (z obcięciami)", command=Point.add_image_clip)
+        point_menu.add_command(label="Mnożenie przez całkowitą (bez obcięć)",
+                               command=lambda: Point.scalar_op_dialog("mul", clip=False))
+        point_menu.add_command(label="Mnożenie przez całkowitą (z obcięciami)",
+                               command=lambda: Point.scalar_op_dialog("mul", clip=True))
+        point_menu.add_command(label="Dodawanie całkowitej (z obcięciami)",
+                               command=lambda: Point.scalar_op_dialog("add", clip=True))
+        point_menu.add_command(label="Odejmowanie od całkowitej (z obcięciami)",
+                               command=lambda: Point.scalar_op_dialog("sub", clip=True))
+        point_menu.add_command(label="Dzielenie przez całkowitą (z obcięciami)",
+                               command=lambda: Point.scalar_op_dialog("div", clip=True))
+        point_menu.add_command(label="Różnica bezwzględna (absdiff)", command=Point.abs_difference)
         menu.add_cascade(label="Operacje punktowe", menu=point_menu)
 
         #Operacje logiczne
@@ -134,13 +163,13 @@ class ImageWindow(tk.Toplevel):
 
         #Morfologia
         morph_menu = tk.Menu(menu, tearoff=0)
-        morph_menu.add_command(label="Erozja", command=lambda: Morphological.morphology_dialog('erode'))
-        morph_menu.add_command(label="Dylacja", command=lambda: Morphological.morphology_dialog('dilate'))
-        morph_menu.add_command(label="Otwarcie", command=lambda: Morphological.morphology_dialog('open'))
-        morph_menu.add_command(label="Zamknięcie", command=lambda: Morphological.morphology_dialog('close'))
+        morph_menu.add_command(label="Erozja", command=lambda: Morphological(self, "erode"))
+        morph_menu.add_command(label="Dylacja", command=lambda: Morphological(self, "dilate"))
+        morph_menu.add_command(label="Otwarcie", command=lambda: Morphological(self, "open"))
+        morph_menu.add_command(label="Zamknięcie", command=lambda: Morphological(self, "close"))
         morph_menu.add_separator()
-        morph_menu.add_command(label="Rekonstrukcja morfologiczna", command=Morphological.reconstruction_dialog)
-        processing_menu.add_command(label="Szkieletyzacja", command=Morphological.skeletonize_dialog)
+        morph_menu.add_command(label="Rekonstrukcja morfologiczna", command=lambda: Morphological(self, "reconstruction"))
+        processing_menu.add_command(label="Szkieletyzacja", command=lambda: Morphological(self, "skeletonize"))
         menu.add_cascade(label="Morfologia", menu=morph_menu)
 
         self.config(menu=menu)
