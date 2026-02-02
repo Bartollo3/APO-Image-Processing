@@ -1,12 +1,13 @@
 import tkinter as tk
 from tkinter import filedialog, messagebox
-import ImageWindow
+from ImageWindow import ImageWindow
 
 class App:
     def __init__(self, root):
         self.root = root
         self.root.title("Aplikacja do przetwarzania obrazów")
         self.create_menu()
+        self.open_images = []
 
     def create_menu(self):
         menu_bar = tk.Menu(self.root)
@@ -20,13 +21,11 @@ class App:
         menu_bar.add_cascade(label="Plik", menu=file_menu)
         self.root.config(menu=menu_bar)
 
-        self.open_images = []
-
     def load_image(self):
         filetypes = [("Obrazy", "*.bmp *.tif *.tiff *.png *.jpg *.jpeg")]
         path = filedialog.askopenfilename(filetypes=filetypes)
         if path:
-            win = ImageWindow.ImageWindow(self.root, path)
+            win = ImageWindow(self.root, path)
             self.open_images.append(win)
 
     def duplicate_image(self):
