@@ -2,7 +2,7 @@ import tkinter as tk
 from tkinter import filedialog
 import numpy as np
 import os
-import cv2
+import  cv2
 from PIL import ImageTk, Image, ImageOps
 from Analysis import Analysis
 from Processing import Processing
