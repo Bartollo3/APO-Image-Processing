@@ -11,16 +11,6 @@ from Logical import Logical
 from Filters import Filters
 from Morphological import Morphological
 
-def cv2_to_tk(image):
-    if image is None:
-        return None
-    if len(image.shape) == 3 and image.shape[2] == 3:
-        img_rgb = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
-        pil_img = Image.fromarray(img_rgb)
-    else:
-        pil_img = Image.fromarray(image)
-    return ImageTk.PhotoImage(pil_img)
-
 class ImageWindow(tk.Toplevel):
     def __init__(self, master, image_source):
         super().__init__(master)
@@ -64,6 +54,17 @@ class ImageWindow(tk.Toplevel):
                 self.after_cancel(self._resize_after_id)
             self._resize_after_id = self.after(200, self.update_image)
 
+    @staticmethod
+    def cv2_to_tk(image):
+        if image is None:
+            return None
+        if len(image.shape) == 3 and image.shape[2] == 3:
+            img_rgb = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+            pil_img = Image.fromarray(img_rgb)
+        else:
+            pil_img = Image.fromarray(image)
+        return ImageTk.PhotoImage(pil_img)
+
     def _check_compat(self, img1, img2):
         if img1 is None or img2 is None:
             return False, "Brak obrazu"
@@ -101,63 +102,63 @@ class ImageWindow(tk.Toplevel):
 
         #Analiza
         lut_menu = tk.Menu(menu, tearoff=0)
-        lut_menu.add_command(label="Pokaż tablicę LUT", command=Analysis.show_lut)
-        lut_menu.add_command(label="Histogram i statystyki", command=Analysis.show_histogram)
+        lut_menu.add_command(label="Pokaż tablicę LUT", command= lambda: Analysis(self, "LUT"))
+        lut_menu.add_command(label="Histogram i statystyki", command= lambda: Analysis(self, "histogram"))
         menu.add_cascade(label="Analiza", menu=lut_menu)
 
         #Przetwarzanie
         processing_menu = tk.Menu(menu, tearoff=0)
-        processing_menu.add_command(label="Rozciąganie bez przesycenia", command=Processing.linear_stretch)
-        processing_menu.add_command(label="Rozciąganie z przesyceniem 5%", command=Processing.linear_stretch_clip)
-        processing_menu.add_command(label="Rozciąganie (p1-p2 -> q1-q2)", command=Processing.histogram_stretch_dialog)
-        processing_menu.add_command(label="Equalizacja LUT", command=Processing.equalize_lut)
-        processing_menu.add_command(label="Progowanie (binarne / zachowaj szarość)", command=Processing.threshold_dialog)
+        processing_menu.add_command(label="Rozciąganie bez przesycenia", command= lambda: Processing(self, "Rozciąganie bez przesycenia"))
+        processing_menu.add_command(label="Rozciąganie z przesyceniem 5%", command= lambda: Processing(self, "Rozciąganie z przesyceniem 5%"))
+        processing_menu.add_command(label="Rozciąganie (p1-p2 -> q1-q2)", command=lambda:Processing(self, "Rozciąganie (p1-p2 -> q1-q2)"))
+        processing_menu.add_command(label="Equalizacja LUT", command=lambda:Processing(self, "Equalizacja LUT"))
+        processing_menu.add_command(label="Progowanie (binarne / zachowaj szarość)", command=lambda:Processing(self, "Progowanie (binarne / zachowaj szarość)"))
         seg_menu = tk.Menu(processing_menu, tearoff=0)
-        seg_menu.add_command(label="Progowanie podwójne (dwa progi)", command=Processing.double_threshold_dialog)
-        seg_menu.add_command(label="Progowanie Otsu", command=Processing.otsu_threshold)
-        seg_menu.add_command(label="Progowanie adaptacyjne", command=Processing.adaptive_threshold_dialog)
+        seg_menu.add_command(label="Progowanie podwójne (dwa progi)", command=lambda:Processing(self, "Progowanie podwójne (dwa progi)"))
+        seg_menu.add_command(label="Progowanie Otsu", command=lambda:Processing(self, "Progowanie Otsu"))
+        seg_menu.add_command(label="Progowanie adaptacyjne", command=lambda:Processing(self, "Progowanie adaptacyjne"))
         processing_menu.add_cascade(label="Segmentacja", menu=seg_menu)
-        processing_menu.add_command(label="Hough - detekcja krawędzi (linie/okręgi)", command=Processing.hough_dialog)
+        processing_menu.add_command(label="Hough - detekcja krawędzi (linie/okręgi)", command=lambda:Processing(self, "Hough - detekcja krawędzi (linie/okręgi)"))
         menu.add_cascade(label="Przetwarzanie obrazu", menu=processing_menu)
 
         #Menu Operacje punktowe
         point_menu = tk.Menu(menu, tearoff=0)
-        point_menu.add_command(label="Negacja", command=Point.apply_negative)
-        point_menu.add_command(label="Redukcja poziomów szarości", command=Point.reduce_gray_levels)
+        point_menu.add_command(label="Negacja", command=lambda:Point(self, "apply_negative"))
+        point_menu.add_command(label="Redukcja poziomów szarości", command=lambda:Point(self, "reduce_gray_levels"))
         #Wieloargumentowe (dodawanie, mnożenie, dzielenie, różnica bezwzględna)
         point_menu.add_separator()
-        point_menu.add_command(label="Dodaj obraz(y) (bez obcięć)", command=Point.add_image_no_clip)
-        point_menu.add_command(label="Dodaj obraz(y) (z obcięciami)", command=Point.add_image_clip)
+        point_menu.add_command(label="Dodaj obraz(y) (bez obcięć)", command=lambda:Point(self, "add_image_no_clip"))
+        point_menu.add_command(label="Dodaj obraz(y) (z obcięciami)", command=lambda:Point(self, "add_image_clip"))
         point_menu.add_command(label="Mnożenie przez całkowitą (bez obcięć)",
-                               command=lambda: Point.scalar_op_dialog("mul", clip=False))
+                               command=lambda: Point(self, "mul_no_clip"))
         point_menu.add_command(label="Mnożenie przez całkowitą (z obcięciami)",
-                               command=lambda: Point.scalar_op_dialog("mul", clip=True))
+                               command=lambda: Point(self, "mul"))
         point_menu.add_command(label="Dodawanie całkowitej (z obcięciami)",
-                               command=lambda: Point.scalar_op_dialog("add", clip=True))
+                               command=lambda: Point(self, "add"))
         point_menu.add_command(label="Odejmowanie od całkowitej (z obcięciami)",
-                               command=lambda: Point.scalar_op_dialog("sub", clip=True))
+                               command=lambda: Point(self, "sub"))
         point_menu.add_command(label="Dzielenie przez całkowitą (z obcięciami)",
-                               command=lambda: Point.scalar_op_dialog("div", clip=True))
-        point_menu.add_command(label="Różnica bezwzględna (absdiff)", command=Point.abs_difference)
+                               command=lambda: Point(self, "div"))
+        point_menu.add_command(label="Różnica bezwzględna (absdiff)", command=lambda:Point(self, "absdiff"))
         menu.add_cascade(label="Operacje punktowe", menu=point_menu)
 
         #Operacje logiczne
         logic_menu = tk.Menu(menu, tearoff=0)
-        logic_menu.add_command(label="NOT (pojedynczy obraz)", command=Logical.logical_not)
-        logic_menu.add_command(label="AND (między obrazami)", command=lambda: Logical.logical_operations("and"))
-        logic_menu.add_command(label="OR  (między obrazami)", command=lambda: Logical.logical_operations("or"))
-        logic_menu.add_command(label="XOR (między obrazami)", command=lambda: Logical.logical_operations("xor"))
+        logic_menu.add_command(label="NOT (pojedynczy obraz)", command=lambda:Logical(self, "not"))
+        logic_menu.add_command(label="AND (między obrazami)", command=lambda: Logical(self, "and"))
+        logic_menu.add_command(label="OR  (między obrazami)", command=lambda: Logical(self, "or"))
+        logic_menu.add_command(label="XOR (między obrazami)", command=lambda: Logical(self, "xor"))
         menu.add_cascade(label="Operacje logiczne", menu=logic_menu)
 
         #Sąsiedztwo / Filtry liniowe / Laplasjan / Prewitt / Sobel / Mediana / Canny
         neigh_menu = tk.Menu(menu, tearoff=0)
-        neigh_menu.add_command(label="Wygładzanie (średnie / wagowe / Gaussowskie)", command=Filters.smoothing_dialog)
-        neigh_menu.add_command(label="Wyostrzanie (3 maski Laplace'a)", command=Filters.laplace_dialog)
-        neigh_menu.add_command(label="Prewitt - detekcja kierunkowa (8 kierunków)", command=Filters.prewitt_dialog)
-        neigh_menu.add_command(label="Sobel (dwie prostopadłe maski)", command=Filters.sobel_dialog)
+        neigh_menu.add_command(label="Wygładzanie (średnie / wagowe / Gaussowskie)", command=lambda:Filters(self, "smoothing_dialog"))
+        neigh_menu.add_command(label="Wyostrzanie (3 maski Laplace'a)", command=lambda:Filters(self, "laplace_dialog"))
+        neigh_menu.add_command(label="Prewitt - detekcja kierunkowa (8 kierunków)", command=lambda:Filters(self, "prewitt_dialog"))
+        neigh_menu.add_command(label="Sobel (dwie prostopadłe maski)", command=lambda:Filters(self, "sobel_dialog"))
         neigh_menu.add_separator()
-        neigh_menu.add_command(label="Filtr medianowy (3x3..9x9)", command=Filters.median_dialog)
-        neigh_menu.add_command(label="Canny - detekcja krawędzi", command=Filters.canny_dialog)
+        neigh_menu.add_command(label="Filtr medianowy (3x3..9x9)", command=lambda:Filters(self, "median_dialog"))
+        neigh_menu.add_command(label="Canny - detekcja krawędzi", command=lambda:Filters(self, "canny_dialog"))
         menu.add_cascade(label="Sąsiedztwo / Filtry", menu=neigh_menu)
 
         #Morfologia
@@ -212,7 +213,7 @@ class ImageWindow(tk.Toplevel):
             img = cv2.resize(self.original_image, new_size, interpolation=cv2.INTER_LANCZOS4)
 
         self.display_image = img
-        self.tk_image = cv2_to_tk(img)
+        self.tk_image = self.cv2_to_tk(img)
         self.image_label.config(image=self.tk_image)
 
     def show_original_size(self):

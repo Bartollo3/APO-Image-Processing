@@ -1,26 +1,60 @@
+import tkinter as tk
+from tkinter import messagebox, ttk
+import cv2
+import numpy as np
 
-class Analysis:
+class Analysis(tk.Toplevel):
+    def __init__(self, master, choice):
+        super().__init__(master)
+        if choice == "histogram":
+            self.show_histogram_stats()
+        else:
+            self.show_lut()
+
     def show_lut(self):
         lut = self.generate_lut()
         LUTWindow(self, lut)
 
+    def generate_lut(self):
+        img = self.master.original_image
+        # If single-channel image -> L
+        if img.ndim == 2:
+            hist = cv2.calcHist([img], [0], None, [256], [0, 256]).astype(int).flatten().tolist()
+            return {"L": hist}
+
+        if img.ndim == 3 and img.shape[2] >= 3:
+            b = img[:, :, 0]
+            g = img[:, :, 1]
+            r = img[:, :, 2]
+            try:
+                if np.array_equal(b, g) and np.array_equal(g, r):
+                    hist = cv2.calcHist([b], [0], None, [256], [0, 256]).astype(int).flatten().tolist()
+                    return {"L": hist}
+            except Exception:
+                pass
+
+        # Default: color image histogram per channel (B,G,R)
+        b_hist = cv2.calcHist([img], [0], None, [256], [0, 256]).astype(int).flatten().tolist()
+        g_hist = cv2.calcHist([img], [1], None, [256], [0, 256]).astype(int).flatten().tolist()
+        r_hist = cv2.calcHist([img], [2], None, [256], [0, 256]).astype(int).flatten().tolist()
+        return {"R": r_hist, "G": g_hist, "B": b_hist}
+
 
     def show_histogram_stats(self, log_scale=False):
-        if self.original_image is None:
+        from ImageWindow import ImageWindow
+        if self.master.original_image is None:
             messagebox.showerror("Błąd", "Brak załadowanego obrazu")
             return
 
-        img = self.original_image
+        img = self.master.original_image
         if img.size == 0:
             messagebox.showerror("Błąd", "Obraz pusty")
             return
-
+        
         pixel_count = img.shape[0] * img.shape[1]
+        self.title("Histogram i statystyki")
 
-        win = tk.Toplevel(self)
-        win.title("Histogram i statystyki")
-
-        tk.Label(win, text=f"Liczba pikseli: {pixel_count}", font=("Arial", 11, "italic")).pack(pady=(8, 0))
+        tk.Label(self, text=f"Liczba pikseli: {pixel_count}", font=("Arial", 11, "italic")).pack(pady=(8, 0))
 
         if img.ndim == 2:
             channels = [("Skala szarości", img, "black")]
@@ -46,7 +80,7 @@ class Analysis:
             else:
                 channels = [("Skala szarości", img[:, :, 0], "black")]
 
-        notebook = ttk.Notebook(win)
+        notebook = ttk.Notebook(self)
         notebook.pack(padx=10, pady=10)
 
         for name, channel_data, color in channels:
@@ -89,7 +123,7 @@ class Analysis:
             tab = tk.Frame(notebook)
             notebook.add(tab, text=name)
 
-            hist_tk = cv2_to_tk(hist_img)
+            hist_tk = ImageWindow.cv2_to_tk(hist_img)
             hist_label = tk.Label(tab, image=hist_tk)
             hist_label.image = hist_tk
             hist_label.pack(padx=10, pady=8)
@@ -101,38 +135,13 @@ class Analysis:
             tk.Label(stats_frame, text=f"Wariancja: {var:.2f}", font=("Arial", 11)).pack(anchor="w")
             tk.Label(stats_frame, text=f"Odchylenie standardowe: {std:.2f}", font=("Arial", 11)).pack(anchor="w")
 
-        btn_frame = tk.Frame(win)
+        btn_frame = tk.Frame(self)
         btn_frame.pack(pady=8)
-        tk.Button(btn_frame, text="Zamknij", command=win.destroy).pack(side="right", padx=6)
+        tk.Button(btn_frame, text="Zamknij", command=self.destroy).pack(side="right", padx=6)
 
         def reopen_toggled():
-            win.destroy()
+            self.destroy()
             self.show_histogram_stats(log_scale=not log_scale)
-
-
-    def generate_lut(self):
-        img = self.original_image
-        # If single-channel image -> L
-        if img.ndim == 2:
-            hist = cv2.calcHist([img], [0], None, [256], [0, 256]).astype(int).flatten().tolist()
-            return {"L": hist}
-
-        if img.ndim == 3 and img.shape[2] >= 3:
-            b = img[:, :, 0]
-            g = img[:, :, 1]
-            r = img[:, :, 2]
-            try:
-                if np.array_equal(b, g) and np.array_equal(g, r):
-                    hist = cv2.calcHist([b], [0], None, [256], [0, 256]).astype(int).flatten().tolist()
-                    return {"L": hist}
-            except Exception:
-                pass
-
-        # Default: color image histogram per channel (B,G,R)
-        b_hist = cv2.calcHist([img], [0], None, [256], [0, 256]).astype(int).flatten().tolist()
-        g_hist = cv2.calcHist([img], [1], None, [256], [0, 256]).astype(int).flatten().tolist()
-        r_hist = cv2.calcHist([img], [2], None, [256], [0, 256]).astype(int).flatten().tolist()
-        return {"R": r_hist, "G": g_hist, "B": b_hist}
 
 class LUTWindow(tk.Toplevel):
     def __init__(self, master, lut):
@@ -177,6 +186,7 @@ class LUTWindow(tk.Toplevel):
 
             self.trees[channel] = tree
             self.populate_tree(channel)
+
 
     def check_grayscale(self, lut):
         # Return True when LUT represents a grayscale image.

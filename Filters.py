@@ -1,12 +1,34 @@
-class Filters:
-    def smoothing_dialog(self):
-        dlg = tk.Toplevel(self)
-        dlg.title("Wygładzanie")
+import tkinter as tk
+from tkinter import messagebox
 
-        # layout: left column controls, right column previews
-        left = tk.Frame(dlg)
+import cv2
+import numpy as np
+
+
+class Filters(tk.Toplevel):
+    def __init__(self, master, choice):
+        super().__init__(master)
+        match choice:
+            case "smoothing_dialog":
+                self.smoothing_dialog()
+            case "laplace_dialog":
+                self.laplace_dialog()
+            case "prewitt_dialog":
+                self.prewitt_dialog()
+            case "sobel_dialog":
+                self.sobel_dialog()
+            case "median_dialog":
+                self.median_dialog()
+            case "canny_dialog":
+                self.canny_dialog()
+
+    def smoothing_dialog(self):
+        from ImageWindow import ImageWindow
+        self.title("Wygładzanie")
+
+        left = tk.Frame(self)
         left.grid(row=0, column=0, sticky="ns", padx=8, pady=8)
-        right = tk.Frame(dlg)
+        right = tk.Frame(self)
         right.grid(row=0, column=1, sticky="nsew", padx=8, pady=8)
 
         tk.Label(left, text="Typ:").pack(anchor="w")
@@ -32,23 +54,22 @@ class Filters:
             k = int(size_var.get())
             bord = border_var.get()
             border_flag = cv2.BORDER_CONSTANT if bord == "BORDER_CONSTANT" else cv2.BORDER_REFLECT
-            img = self.ensure_grayscale(self.original_image)
+            img = self.master.ensure_grayscale(self.master.original_image)
             if typ == "średnie":
                 kernel = np.array([[0, 1, 0], [1, 1, 1], [0, 1, 0]], dtype=np.float32)
             else:
                 g = cv2.getGaussianKernel(k, 0)
                 kernel = np.outer(g, g).astype(np.float32)
             res = cv2.filter2D(img, -1, kernel, borderType=border_flag)
-            ImageWindow(self.master, res).title(f"Wygładzanie {typ} {k} - {self.title()}")
+            ImageWindow(self.master, res).title(f"Wygładzanie {typ} {k} - {self.master.title()}")
             try:
-                dlg.destroy()
+                self.destroy()
             except Exception:
                 pass
 
         tk.Button(btn_frame, text="Zastosuj", command=do_apply).pack(side="left", padx=4)
-        tk.Button(btn_frame, text="Anuluj", command=dlg.destroy).pack(side="left", padx=4)
+        tk.Button(btn_frame, text="Anuluj", command=self.destroy).pack(side="left", padx=4)
 
-        # preview area: matrices for średnie and gauss
         preview_label = tk.Label(right, text="Maski (binary)")
         preview_label.pack()
         previews = tk.Frame(right)
@@ -90,7 +111,6 @@ class Filters:
             mean_k, gauss_k = build_kernels(k)
             render_matrix(mean_frame, mean_k)
             render_matrix(gauss_frame, gauss_k)
-            # highlight selected type
             if typ_var.get() == "średnie":
                 mean_frame.config(bg="#e8f4ff")
                 gauss_frame.config(bg=right.cget("bg"))
@@ -98,35 +118,31 @@ class Filters:
                 gauss_frame.config(bg="#e8f4ff")
                 mean_frame.config(bg=right.cget("bg"))
 
-        # initial render
         update_previews()
-        # bind updates
         try:
             size_var.trace_add("write", update_previews)
             typ_var.trace_add("write", update_previews)
         except Exception:
-            # fallback for older tkinter
             size_var.trace("w", lambda *a: update_previews())
             typ_var.trace("w", lambda *a: update_previews())
 
-        dlg.transient(self);
-        dlg.grab_set();
-        dlg.focus_set()
+        self.transient(self)
+        self.grab_set()
+        self.focus_set()
 
     def laplace_dialog(self):
-        # Prepare masks
+        from ImageWindow import ImageWindow
         masks = [
             np.array([[0, 1, 0], [1, -4, 1], [0, 1, 0]], dtype=np.float32),
             np.array([[-1, -1, -1], [-1, 8, -1], [-1, -1, -1]], dtype=np.float32),
             np.array([[-1, 2, -1], [2, -4, 2], [-1, 2, -1]], dtype=np.float32)
         ]
 
-        dlg = tk.Toplevel(self)
-        dlg.title("Wyostrzanie (Laplace)")
+        self.title("Wyostrzanie (Laplace)")
 
-        left = tk.Frame(dlg)
+        left = tk.Frame(self)
         left.grid(row=0, column=0, sticky="ns", padx=8, pady=8)
-        right = tk.Frame(dlg)
+        right = tk.Frame(self)
         right.grid(row=0, column=1, sticky="nsew", padx=8, pady=8)
 
         tk.Label(left, text="Wybierz maskę:").pack(anchor="w")
@@ -150,19 +166,18 @@ class Filters:
             idx = selected_idx.get()
             bord = border_var.get()
             border_flag = cv2.BORDER_CONSTANT if bord == "BORDER_CONSTANT" else cv2.BORDER_REFLECT
-            img = self.ensure_grayscale(self.original_image)
+            img = self.master.ensure_grayscale(self.master.original_image)
             lap = cv2.filter2D(img, cv2.CV_32F, masks[idx], borderType=border_flag)
             sharp = cv2.convertScaleAbs(img.astype(np.float32) + lap)
-            ImageWindow(self.master, sharp).title(f"Laplace mask {idx + 1} - {self.title()}")
+            ImageWindow(self.master, sharp).title(f"maska Laplace {idx + 1} - {self.master.title()}")
             try:
-                dlg.destroy()
+                self.destroy()
             except Exception:
                 pass
 
         tk.Button(btn_frame, text="Zastosuj", command=do_apply).pack(side="left", padx=4)
-        tk.Button(btn_frame, text="Zamknij", command=dlg.destroy).pack(side="left", padx=4)
+        tk.Button(btn_frame, text="Zamknij", command=self.destroy).pack(side="left", padx=4)
 
-        # Previews for masks
         preview_label = tk.Label(right, text="Maski (sign)")
         preview_label.pack()
         previews = tk.Frame(right)
@@ -206,12 +221,13 @@ class Filters:
                     f.config(bg=right.cget("bg"))
 
         update_previews()
-        dlg.transient(self);
-        dlg.grab_set();
-        dlg.focus_set()
+        self.transient(self)
+        self.grab_set()
+        self.focus_set()
 
     def prewitt_dialog(self):
-        img_base = self.ensure_grayscale(self.original_image).astype(np.float32)
+        from ImageWindow import ImageWindow
+        img_base = self.master.ensure_grayscale(self.master.original_image).astype(np.float32)
         prewitt_x = np.array([[-1, 0, 1], [-1, 0, 1], [-1, 0, 1]], dtype=np.float32)
         prewitt_y = prewitt_x.T
         kernels = [
@@ -222,12 +238,11 @@ class Filters:
             -np.array([[0, 1, 1], [-1, 0, 1], [-1, -1, 0]], dtype=np.float32)
         ]
 
-        dlg = tk.Toplevel(self)
-        dlg.title("Prewitt - wybierz kierunek (1..8)")
+        self.title("Prewitt - wybierz kierunek (1..8)")
 
-        left = tk.Frame(dlg)
+        left = tk.Frame(self)
         left.grid(row=0, column=0, sticky="ns", padx=8, pady=8)
-        right = tk.Frame(dlg)
+        right = tk.Frame(self)
         right.grid(row=0, column=1, sticky="nsew", padx=8, pady=8)
 
         tk.Label(left, text="Wybierz kierunek (1..8):").pack(anchor="w")
@@ -254,14 +269,14 @@ class Filters:
             ker = kernels[idx]
             res = cv2.filter2D(img_base, cv2.CV_32F, ker, borderType=border_flag)
             res = cv2.convertScaleAbs(np.abs(res))
-            ImageWindow(self.master, res).title(f"Prewitt dir {idx + 1} - {self.title()}")
+            ImageWindow(self.master, res).title(f"Prewitt {idx + 1} - {self.master.title()}")
             try:
-                dlg.destroy()
+                self.destroy()
             except Exception:
                 pass
 
         tk.Button(btn_frame, text="Zastosuj", command=do_apply).pack(side="left", padx=4)
-        tk.Button(btn_frame, text="Zamknij", command=dlg.destroy).pack(side="left", padx=4)
+        tk.Button(btn_frame, text="Zamknij", command=self.destroy).pack(side="left", padx=4)
 
         preview_label = tk.Label(right, text="Maski (sign)")
         preview_label.pack()
@@ -269,7 +284,6 @@ class Filters:
         previews.pack()
 
         frames = []
-        # arrange 4x2 grid for 8 kernels
         for i in range(8):
             lf = tk.LabelFrame(previews, text=f"k{i + 1}")
             lf.grid(row=i // 4, column=i % 4, padx=6, pady=6)
@@ -307,56 +321,56 @@ class Filters:
                     f.config(bg=right.cget("bg"))
 
         update_previews()
-        dlg.transient(self);
-        dlg.grab_set();
-        dlg.focus_set()
+        self.transient(self)
+        self.grab_set()
+        self.focus_set()
 
     def sobel_dialog(self):
+        from ImageWindow import ImageWindow
         def apply(bord):
-            img = self.ensure_grayscale(self.original_image)
+            img = self.master.ensure_grayscale(self.master.original_image)
             border_flag = cv2.BORDER_REFLECT if bord == "BORDER_REFLECT" else cv2.BORDER_CONSTANT
             gx = cv2.Sobel(img, cv2.CV_16S, 1, 0, ksize=3, borderType=border_flag)
             gy = cv2.Sobel(img, cv2.CV_16S, 0, 1, ksize=3, borderType=border_flag)
             mag = cv2.magnitude(gx.astype(np.float32), gy.astype(np.float32))
             res = cv2.convertScaleAbs(mag)
-            ImageWindow(self.master, res).title(f"Sobel magnitude - {self.title()}")
-            dlg.destroy()
+            ImageWindow(self.master, res).title(f"Sobel magnitude - {self.master.title()}")
+            self.destroy()
 
-        dlg = tk.Toplevel(self)
-        dlg.title("Sobel - detekcja krawędzi")
-        tk.Label(dlg, text="Tryb brzegu:").pack()
+        self.title("Sobel - detekcja krawędzi")
+        tk.Label(self, text="Tryb brzegu:").pack()
         border_var = tk.StringVar(value="BORDER_REFLECT")
-        tk.OptionMenu(dlg, border_var, "BORDER_CONSTANT", "BORDER_REFLECT").pack()
-        tk.Button(dlg, text="OK", command=lambda: apply(border_var.get())).pack(pady=6)
-        dlg.transient(self);
-        dlg.grab_set();
-        dlg.focus_set()
+        tk.OptionMenu(self, border_var, "BORDER_CONSTANT", "BORDER_REFLECT").pack()
+        tk.Button(self, text="OK", command=lambda: apply(border_var.get())).pack(pady=6)
+        self.transient(self)
+        self.grab_set()
+        self.focus_set()
 
     def median_dialog(self):
+        from ImageWindow import ImageWindow
         def apply():
             k = int(size_var.get())
             bord = border_var.get()
             border_flag = cv2.BORDER_REFLECT if bord == "BORDER_REFLECT" else cv2.BORDER_CONSTANT
-            img = self.ensure_grayscale(self.original_image)
-            # OpenCV medianBlur handles borders internally; border choice not exposed, but keep option for UI parity
+            img = self.master.ensure_grayscale(self.master.original_image)
             res = cv2.medianBlur(img, k)
-            ImageWindow(self.master, res).title(f"Median {k} - {self.title()}")
-            dlg.destroy()
+            ImageWindow(self.master, res).title(f"Medianowy {k} - {self.master.title()}")
+            self.destroy()
 
-        dlg = tk.Toplevel(self)
-        dlg.title("Filtr medianowy")
-        tk.Label(dlg, text="Rozmiar maski:").pack()
+        self.title("Filtr medianowy")
+        tk.Label(self, text="Rozmiar maski:").pack()
         size_var = tk.StringVar(value="3")
-        tk.OptionMenu(dlg, size_var, "3", "5", "7", "9").pack()
-        tk.Label(dlg, text="Tryb brzegu (informacyjny):").pack()
+        tk.OptionMenu(self, size_var, "3", "5", "7", "9").pack()
+        tk.Label(self, text="Tryb brzegu (informacyjny):").pack()
         border_var = tk.StringVar(value="BORDER_REFLECT")
-        tk.OptionMenu(dlg, border_var, "BORDER_CONSTANT", "BORDER_REFLECT").pack()
-        tk.Button(dlg, text="OK", command=apply).pack(pady=6)
-        dlg.transient(self);
-        dlg.grab_set();
-        dlg.focus_set()
+        tk.OptionMenu(self, border_var, "BORDER_CONSTANT", "BORDER_REFLECT").pack()
+        tk.Button(self, text="OK", command=apply).pack(pady=6)
+        self.transient(self)
+        self.grab_set()
+        self.focus_set()
 
     def canny_dialog(self):
+        from ImageWindow import ImageWindow
         def apply():
             try:
                 t1 = int(t1_entry.get());
@@ -364,35 +378,29 @@ class Filters:
             except ValueError:
                 messagebox.showerror("Błąd", "Wprowadź liczby całkowite")
                 return
-            img = self.ensure_grayscale(self.original_image)
+            img = self.master.ensure_grayscale(self.master.original_image)
             edges = cv2.Canny(img, t1, t2)
-            ImageWindow(self.master, edges).title(f"Canny {t1},{t2} - {self.title()}")
-            dlg.destroy()
+            ImageWindow(self.master, edges).title(f"Canny {t1},{t2} - {self.master.title()}")
+            self.destroy()
 
-        dlg = tk.Toplevel(self)
-        dlg.title("Canny")
-        tk.Label(dlg, text="Threshold1:").pack();
-        t1_entry = tk.Entry(dlg);
-        t1_entry.insert(0, "100");
+        self.title("Canny")
+        tk.Label(self, text="Threshold1:").pack()
+        t1_entry = tk.Entry(self)
+        t1_entry.insert(0, "100")
         t1_entry.pack()
-        tk.Label(dlg, text="Threshold2:").pack();
-        t2_entry = tk.Entry(dlg);
-        t2_entry.insert(0, "200");
+        tk.Label(self, text="Threshold2:").pack()
+        t2_entry = tk.Entry(self)
+        t2_entry.insert(0, "200")
         t2_entry.pack()
-        tk.Button(dlg, text="OK", command=apply).pack(pady=6)
-        dlg.transient(self);
-        dlg.grab_set();
-        dlg.focus_set()
+        tk.Button(self, text="OK", command=apply).pack(pady=6)
+        self.transient(self)
+        self.grab_set()
+        self.focus_set()
 
     def show_mask_matrix(self, mask, title="Maska binarna"):
-        """
-        Show a small Toplevel window with the binary version of the mask (non-zero -> 1, zero -> 0).
-        """
         m = np.array(mask)
-        # If kernel is 1D (e.g. gaussian vector), convert to 2D
         if m.ndim == 1:
             m = np.atleast_2d(m)
-        # we'll display sign information: positive -> '1', zero -> '0', negative -> '-'
         rows, cols = m.shape
 
         win = tk.Toplevel(self)
@@ -416,6 +424,6 @@ class Filters:
 
         btn = tk.Button(win, text="Zamknij", command=win.destroy)
         btn.pack(pady=(6, 8))
-        win.transient(self);
-        win.grab_set();
+        win.transient(self)
+        win.grab_set()
         win.focus_set()

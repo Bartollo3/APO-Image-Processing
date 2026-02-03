@@ -10,7 +10,7 @@ class Morphological (tk.Toplevel):
         super().__init__(master)
         self.marker_var = None
         self.geometry("360x360")
-        self.title("Morphological")
+        self.title("Morfologia")
         match choice:
             case "erode":
                 self.morphology_dialog('erode')
@@ -23,7 +23,7 @@ class Morphological (tk.Toplevel):
             case "reconstruction":
                 self.reconstruction_dialog()
             case "skeletonize":
-                self.skeletonize_dialog()
+                self.skeletonize()
 
     STRUCTURING_ELEMENTS = {
         'krzyz': cv2.MORPH_CROSS,
@@ -31,16 +31,16 @@ class Morphological (tk.Toplevel):
         'elipsa': cv2.MORPH_ELLIPSE
     }
 
-    def get_structuring_element(self, shape='rect', size=3):
+    def get_structuring_element(self, shape='kwadrat', size=3):
         #Tworzy element strukturalny do operacji morfologicznych
         if shape not in self.STRUCTURING_ELEMENTS:
-            shape = 'rect'
+            shape = 'kwadrat'
 
         morph_shape = self.STRUCTURING_ELEMENTS[shape]
         return cv2.getStructuringElement(morph_shape, (size, size))
 
     def morphology_dialog(self, op):
-        if self.original_image is None:
+        if self.master.original_image is None:
             messagebox.showerror("Błąd", "Brak załadowanego obrazu")
             return
 
@@ -51,33 +51,34 @@ class Morphological (tk.Toplevel):
                 messagebox.showerror("Błąd", "Nieprawidłowa liczba iteracji")
                 return
             shape = shape_var.get()
-            dialog.destroy()
+            self.destroy()
             self.apply_morphology(op, shape, it)
-
-        dialog = tk.Toplevel(self)
-        dialog.title(f"Morfologia - {op}")
-        tk.Label(dialog, text="Element strukturalny:").grid(row=0, column=0)
-        shape_var = tk.StringVar(value="square")
-        tk.OptionMenu(dialog, shape_var, "square", "cross").grid(row=0, column=1)
-        tk.Label(dialog, text="Liczba iteracji:").grid(row=1, column=0);
-        iter_e = tk.Entry(dialog);
-        iter_e.insert(0, "1");
+        self.title(f"Morfologia - {op}")
+        tk.Label(self, text="Element strukturalny:").grid(row=0, column=0)
+        shape_var = tk.StringVar(value="kwadrat")
+        tk.OptionMenu(self, shape_var, "kwadrat", "krzyz", "elipsa").grid(row=0, column=1)
+        tk.Label(self, text="Liczba iteracji:").grid(row=1, column=0);
+        iter_e = tk.Entry(self)
+        iter_e.insert(0, "1")
         iter_e.grid(row=1, column=1)
-        tk.Button(dialog, text="OK", command=on_ok).grid(row=2, column=0, pady=6)
-        tk.Button(dialog, text="Anuluj", command=dialog.destroy).grid(row=2, column=1, pady=6)
-        dialog.transient(self);
-        dialog.grab_set();
-        dialog.focus_set()
+        tk.Button(self, text="OK", command=on_ok).grid(row=2, column=0, pady=6)
+        tk.Button(self, text="Anuluj", command=self.destroy).grid(row=2, column=1, pady=6)
+        self.transient(self)
+        self.grab_set()
+        self.focus_set()
 
     def apply_morphology(self, op, shape, iterations=1):
         from ImageWindow import ImageWindow
-        img = self.ensure_grayscale(self.original_image)
+        img = self.master.ensure_grayscale(self.master.original_image)
         if img is None:
             return
         if shape == "square":
             se = np.ones((3, 3), dtype=np.uint8)
         else:
             se = cv2.getStructuringElement(cv2.MORPH_CROSS, (3, 3))
+        match shape:
+            case "kwadrat":
+                self.get_structuring_element()
         if op == 'erode':
             res = cv2.erode(img, se, iterations=iterations)
         elif op == 'dilate':
@@ -86,8 +87,9 @@ class Morphological (tk.Toplevel):
             res = cv2.morphologyEx(img, cv2.MORPH_OPEN, se, iterations=iterations)
         else:
             res = cv2.morphologyEx(img, cv2.MORPH_CLOSE, se, iterations=iterations)
-        ImageWindow(self.master, res).title(f"Morfologia {op} - {self.title()}")
+        ImageWindow(self.master, res).title(f"Morfologia {op} - {self.master.title()}")
 
+    #Wybór opcji rekonstrukcji
     def reconstruction_dialog(self):
         def on_confirm():
             self.create_marker(self.marker_var, shape_var, size)
@@ -122,6 +124,7 @@ class Morphological (tk.Toplevel):
         self.marker_var.set("erosion")
         dialog.update()
 
+    #tworzy marker używany w procesie rekonstrukcji
     def create_marker(self, marker, shape, size):
         from ImageWindow import ImageWindow
         img = self.master.ensure_grayscale(self.master.original_image)
@@ -196,6 +199,7 @@ class Morphological (tk.Toplevel):
                 dialog.grab_set()
                 dialog.focus_set()
 
+    #Wyświetla obraz z nałożoną rekonstrukcją
     def apply_reconstruction(self, mask, marker_img, shape, size):
         from ImageWindow import ImageWindow
         kernel = self.get_structuring_element(shape.get(), size)
@@ -212,19 +216,20 @@ class Morphological (tk.Toplevel):
         res = prev
         ImageWindow(self.master, res).title(f"Rekonstrukcja morfologiczna - {self.master.title()}")
 
-    def skeletonize_dialog(self):
-        if self.original_image is None:
+    def skeletonize(self):
+        from ImageWindow import ImageWindow
+        if self.master.original_image is None:
             messagebox.showerror("Błąd", "Brak załadowanego obrazu")
             return
-        img = self.ensure_grayscale(self.original_image)
+        img = self.master.ensure_grayscale(self.master.original_image)
         if img.max() > 1 and not set(np.unique(img)).issubset({0, 255}):
             _, img_bin = cv2.threshold(img, 127, 255, cv2.THRESH_BINARY)
         else:
             img_bin = (img > 0).astype(np.uint8) * 255
-        skel = self._skeletonize(img_bin)
-        ImageWindow(self.master, skel).title(f"Szkielet - {self.title()}")
+        skel = self.apply_skeletonize(img_bin)
+        ImageWindow(self.master, skel).title(f"Szkielet - {self.master.title()}")
 
-    def _skeletonize(self, bin_img):
+    def apply_skeletonize(self, bin_img):
         img = bin_img.copy()
         if img.dtype != np.uint8:
             img = img.astype(np.uint8)

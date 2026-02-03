@@ -1,24 +1,54 @@
-class Processing:
+import tkinter as tk
+from tkinter import messagebox
+import cv2
+import numpy as np
+
+class Processing(tk.Toplevel):
+    def __init__(self, master, choice):
+        super().__init__(master)
+        self.geometry("360x360")
+        match choice:
+            case "Rozciąganie bez przesycenia":
+                self.linear_stretch()
+            case "Rozciągnanie z przesyceniem 5%":
+                self.linear_stretch_clip()
+            case "Rozciąganie (p1-p2 -> q1-q2)":
+                self.histogram_stretch_dialog()
+            case "Equalizacja LUT":
+                self.equalize_lut()
+            case "Progowanie (binarne / zachowaj szarość)":
+                self.threshold_dialog()
+            case "Progowanie podwójne (dwa progi)":
+                self.double_threshold_dialog()
+            case "Progowanie Otsu":
+                self.otsu_threshold()
+            case "Progowanie adaptacyjne":
+                self.adaptive_threshold_dialog()
+            case "Hough - detekcja krawędzi (linie/okręgi)":
+                self.hough_dialog()
+
     def linear_stretch(self):
-        img = self.ensure_grayscale(self.original_image)
+        from ImageWindow import ImageWindow
+        img = self.master.ensure_grayscale(self.master.original_image)
         min_val = np.min(img)
         max_val = np.max(img)
         stretched = ((img - min_val) / (max_val - min_val) * 255).astype(np.uint8)
         new_win = ImageWindow(self.master, stretched)
-        new_win.title(f"Rozciąganie - {self.title()}")
+        new_win.title(f"Rozciąganie - {self.master.title()}")
 
     def linear_stretch_clip(self):
-        img = self.ensure_grayscale(self.original_image)
+        from ImageWindow import ImageWindow
+        img = self.master.ensure_grayscale(self.master.original_image)
         flat = img.flatten()
         low = np.percentile(flat, 5)
         high = np.percentile(flat, 95)
         clipped = np.clip(img, low, high)
         stretched = ((clipped - low) / (high - low) * 255).astype(np.uint8)
         new_win = ImageWindow(self.master, stretched)
-        new_win.title(f"Rozciąganie z przesyceniem - {self.title()}")
+        new_win.title(f"Rozciąganie z przesyceniem - {self.master.title()}")
 
     def histogram_stretch_dialog(self):
-        if self.original_image is None:
+        if self.master.original_image is None:
             messagebox.showerror("Błąd", "Brak załadowanego obrazu")
             return
 
@@ -31,35 +61,35 @@ class Processing:
             except ValueError:
                 messagebox.showerror("Błąd", "Wprowadź liczby całkowite 0-255")
                 return
-            dialog.destroy()
+            self.destroy()
             self.histogram_stretch_apply(p1, p2, q1, q2)
 
-        dialog = tk.Toplevel(self)
-        dialog.title("Rozciąganie histogramu (zakres p1-p2 -> q1-q2)")
-        tk.Label(dialog, text="p1:").grid(row=0, column=0);
-        p1_e = tk.Entry(dialog);
+        self.title("Rozciąganie histogramu (zakres p1-p2 -> q1-q2)")
+        tk.Label(self, text="p1:").grid(row=0, column=0);
+        p1_e = tk.Entry(self);
         p1_e.insert(0, "0");
         p1_e.grid(row=0, column=1)
-        tk.Label(dialog, text="p2:").grid(row=1, column=0);
-        p2_e = tk.Entry(dialog);
+        tk.Label(self, text="p2:").grid(row=1, column=0);
+        p2_e = tk.Entry(self);
         p2_e.insert(0, "255");
         p2_e.grid(row=1, column=1)
-        tk.Label(dialog, text="q1:").grid(row=2, column=0);
-        q1_e = tk.Entry(dialog);
+        tk.Label(self, text="q1:").grid(row=2, column=0);
+        q1_e = tk.Entry(self);
         q1_e.insert(0, "0");
         q1_e.grid(row=2, column=1)
-        tk.Label(dialog, text="q2:").grid(row=3, column=0);
-        q2_e = tk.Entry(dialog);
+        tk.Label(self, text="q2:").grid(row=3, column=0);
+        q2_e = tk.Entry(self);
         q2_e.insert(0, "255");
         q2_e.grid(row=3, column=1)
-        tk.Button(dialog, text="OK", command=on_ok).grid(row=4, column=0, pady=6)
-        tk.Button(dialog, text="Anuluj", command=dialog.destroy).grid(row=4, column=1, pady=6)
-        dialog.transient(self);
-        dialog.grab_set();
-        dialog.focus_set()
+        tk.Button(self, text="OK", command=on_ok).grid(row=4, column=0, pady=6)
+        tk.Button(self, text="Anuluj", command=self.destroy).grid(row=4, column=1, pady=6)
+        self.transient(self);
+        self.grab_set();
+        self.focus_set()
 
     def histogram_stretch_apply(self, p1, p2, q1, q2):
-        img = self.ensure_grayscale(self.original_image)
+        from ImageWindow import ImageWindow
+        img = self.master.ensure_grayscale(self.master.original_image)
         if img is None:
             messagebox.showerror("Błąd", "Nie można przetworzyć obrazu")
             return
@@ -74,16 +104,17 @@ class Processing:
         clipped = np.clip(src, p1, p2)
         stretched = (clipped - p1) / (p2 - p1) * (q2 - q1) + q1
         res = np.clip(stretched, 0, 255).astype(np.uint8)
-        ImageWindow(self.master, res).title(f"Rozciąganie {p1}-{p2} -> {q1}-{q2} - {self.title()}")
+        ImageWindow(self.master, res).title(f"Rozciąganie {p1}-{p2} -> {q1}-{q2} - {self.master.title()}")
 
     def equalize_lut(self):
-        img = self.ensure_grayscale(self.original_image)
+        from ImageWindow import ImageWindow
+        img = self.master.ensure_grayscale(self.master.original_image)
         equalized = cv2.equalizeHist(img)
         new_win = ImageWindow(self.master, equalized)
-        new_win.title(f"Equalizacja - {self.title()}")
+        new_win.title(f"Equalizacja - {self.master.title()}")
 
     def threshold_dialog(self):
-        if self.original_image is None:
+        if self.master.original_image is None:
             messagebox.showerror("Błąd", "Brak załadowanego obrazu")
             return
 
@@ -94,38 +125,38 @@ class Processing:
                     messagebox.showerror("Błąd", "Próg musi być w zakresie 0–255")
                     return
                 mode = mode_var.get()
-                dialog.destroy()
+                self.destroy()
                 self.apply_threshold(thr, mode)
             except ValueError:
                 messagebox.showerror("Błąd", "Wprowadź liczbę całkowitą")
 
-        dialog = tk.Toplevel(self)
-        dialog.title("Progowanie obrazu")
-        dialog.geometry("360x160")
-        tk.Label(dialog, text="Wprowadź próg (0–255):").pack(pady=(10, 0))
-        entry = tk.Entry(dialog)
+        self.title("Progowanie obrazu")
+        self.geometry("360x160")
+        tk.Label(self, text="Wprowadź próg (0–255):").pack(pady=(10, 0))
+        entry = tk.Entry(self)
         entry.insert(0, "128")
         entry.pack(pady=6)
 
         mode_var = tk.StringVar(value="binary")
-        rb_frame = tk.Frame(dialog)
+        rb_frame = tk.Frame(self)
         rb_frame.pack(pady=4, fill="x", padx=8)
         tk.Radiobutton(rb_frame, text="Binarne (piksel > próg -> 255, else 0)",
                        variable=mode_var, value="binary").pack(anchor="w")
         tk.Radiobutton(rb_frame, text="Zachowaj szarość (piksel > próg -> oryginalna wartość, else 0)",
                        variable=mode_var, value="keep").pack(anchor="w")
 
-        btn_frame = tk.Frame(dialog)
+        btn_frame = tk.Frame(self)
         btn_frame.pack(pady=8)
         tk.Button(btn_frame, text="OK", width=10, command=on_confirm).pack(side="left", padx=6)
-        tk.Button(btn_frame, text="Anuluj", width=10, command=dialog.destroy).pack(side="left")
+        tk.Button(btn_frame, text="Anuluj", width=10, command=self.destroy).pack(side="left")
 
-        dialog.transient(self)
-        dialog.grab_set()
-        dialog.focus_set()
+        self.transient(self)
+        self.grab_set()
+        self.focus_set()
 
     def apply_threshold(self, threshold, mode="binary"):
-        img = self.ensure_grayscale(self.original_image)
+        from ImageWindow import ImageWindow
+        img = self.master.ensure_grayscale(self.master.original_image)
         if img is None:
             messagebox.showerror("Błąd", "Nie można przetworzyć obrazu")
             return
@@ -139,14 +170,13 @@ class Processing:
             res[mask] = img[mask]
 
         new_win = ImageWindow(self.master, res)
-        try:
-            if mode == "binary":
-                new_win.title(f"Progowanie binarne ({thr}) - {self.title()}")
-            else:
-                new_win.title(f"Progowanie (zachowaj szarość) ({thr}) - {self.title()}")
+        if mode == "binary":
+            new_win.title(f"Progowanie binarne ({thr}) - {self.title()}")
+        else:
+            new_win.title(f"Progowanie (zachowaj szarość) ({thr}) - {self.master.title()}")
 
     def double_threshold_dialog(self):
-        if self.original_image is None:
+        if self.master.original_image is None:
             messagebox.showerror("Błąd", "Brak załadowanego obrazu")
             return
 
@@ -157,46 +187,47 @@ class Processing:
             except ValueError:
                 messagebox.showerror("Błąd", "Wprowadź progi 0-255")
                 return
-            dialog.destroy()
+            self.destroy()
             self.apply_double_threshold(t1, t2)
 
-        dialog = tk.Toplevel(self)
-        dialog.title("Progowanie podwójne")
-        tk.Label(dialog, text="Próg 1 (min):").grid(row=0, column=0);
-        t1_e = tk.Entry(dialog);
+        self.title("Progowanie podwójne")
+        tk.Label(self, text="Próg 1 (min):").grid(row=0, column=0);
+        t1_e = tk.Entry(self);
         t1_e.insert(0, "50");
         t1_e.grid(row=0, column=1)
-        tk.Label(dialog, text="Próg 2 (max):").grid(row=1, column=0);
-        t2_e = tk.Entry(dialog);
+        tk.Label(self, text="Próg 2 (max):").grid(row=1, column=0);
+        t2_e = tk.Entry(self);
         t2_e.insert(0, "200");
         t2_e.grid(row=1, column=1)
-        tk.Button(dialog, text="OK", command=on_ok).grid(row=2, column=0, pady=6)
-        tk.Button(dialog, text="Anuluj", command=dialog.destroy).grid(row=2, column=1, pady=6)
-        dialog.transient(self);
-        dialog.grab_set();
-        dialog.focus_set()
+        tk.Button(self, text="OK", command=on_ok).grid(row=2, column=0, pady=6)
+        tk.Button(self, text="Anuluj", command=self.destroy).grid(row=2, column=1, pady=6)
+        self.transient(self);
+        self.grab_set();
+        self.focus_set()
 
     def apply_double_threshold(self, t1, t2):
-        img = self.ensure_grayscale(self.original_image)
+        from ImageWindow import ImageWindow
+        img = self.master.ensure_grayscale(self.master.original_image)
         if img is None:
             return
         lo = min(t1, t2);
         hi = max(t1, t2)
         mask = ((img >= lo) & (img <= hi)).astype(np.uint8) * 255
-        ImageWindow(self.master, mask).title(f"Progowanie podwójne {lo}-{hi} - {self.title()}")
+        ImageWindow(self.master, mask).title(f"Progowanie podwójne {lo}-{hi} - {self.master.title()}")
 
     def otsu_threshold(self):
-        img = self.ensure_grayscale(self.original_image)
+        from ImageWindow import ImageWindow
+        img = self.master.ensure_grayscale(self.master.original_image)
         if img is None:
             messagebox.showerror("Błąd", "Brak obrazu")
             return
         blur = cv2.GaussianBlur(img, (5, 5), 0)
         _, res = cv2.threshold(blur, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
-        ImageWindow(self.master, res).title(f"Otsu threshold - {self.title()}")
+        ImageWindow(self.master, res).title(f"Otsu threshold - {self.master.title()}")
         print(_)
 
     def adaptive_threshold_dialog(self):
-        if self.original_image is None:
+        if self.master.original_image is None:
             messagebox.showerror("Błąd", "Brak obrazu")
             return
 
@@ -207,31 +238,31 @@ class Processing:
             except ValueError:
                 messagebox.showerror("Błąd", "Nieprawidłowe wartości")
                 return
-            dialog.destroy()
+            self.destroy()
             method = method_var.get()
             self.apply_adaptive_threshold(block, C, method)
 
-        dialog = tk.Toplevel(self)
-        dialog.title("Progowanie adaptacyjne")
-        tk.Label(dialog, text="Metoda:").grid(row=0, column=0)
+        self.title("Progowanie adaptacyjne")
+        tk.Label(self, text="Metoda:").grid(row=0, column=0)
         method_var = tk.StringVar(value="GAUSSIAN")
-        tk.OptionMenu(dialog, method_var, "GAUSSIAN", "MEAN").grid(row=0, column=1)
-        tk.Label(dialog, text="Rozmiar bloku (odd):").grid(row=1, column=0);
-        block_e = tk.Entry(dialog);
+        tk.OptionMenu(self, method_var, "GAUSSIAN", "MEAN").grid(row=0, column=1)
+        tk.Label(self, text="Rozmiar bloku (odd):").grid(row=1, column=0);
+        block_e = tk.Entry(self);
         block_e.insert(0, "11");
         block_e.grid(row=1, column=1)
-        tk.Label(dialog, text="C (subtrakcja):").grid(row=2, column=0);
-        c_e = tk.Entry(dialog);
+        tk.Label(self, text="C (subtrakcja):").grid(row=2, column=0);
+        c_e = tk.Entry(self);
         c_e.insert(0, "2");
         c_e.grid(row=2, column=1)
-        tk.Button(dialog, text="OK", command=on_ok).grid(row=3, column=0, pady=6)
-        tk.Button(dialog, text="Anuluj", command=dialog.destroy).grid(row=3, column=1, pady=6)
-        dialog.transient(self);
-        dialog.grab_set();
-        dialog.focus_set()
+        tk.Button(self, text="OK", command=on_ok).grid(row=3, column=0, pady=6)
+        tk.Button(self, text="Anuluj", command=self.destroy).grid(row=3, column=1, pady=6)
+        self.transient(self);
+        self.grab_set();
+        self.focus_set()
 
     def apply_adaptive_threshold(self, blockSize, C, method):
-        img = self.ensure_grayscale(self.original_image)
+        from ImageWindow import ImageWindow
+        img = self.master.ensure_grayscale(self.master.original_image)
         if img is None:
             return
         if blockSize % 2 == 0:
@@ -241,10 +272,10 @@ class Processing:
         else:
             m = cv2.ADAPTIVE_THRESH_MEAN_C
         res = cv2.adaptiveThreshold(img, 255, m, cv2.THRESH_BINARY, blockSize, C)
-        ImageWindow(self.master, res).title(f"Adaptive thresh ({blockSize},{C}) - {self.title()}")
+        ImageWindow(self.master, res).title(f"Adaptive thresh ({blockSize},{C}) - {self.master.title()}")
 
     def hough_dialog(self):
-        if self.original_image is None:
+        if self.master.original_image is None:
             messagebox.showerror("Błąd", "Brak załadowanego obrazu")
             return
 
@@ -256,30 +287,30 @@ class Processing:
             except ValueError:
                 messagebox.showerror("Błąd", "Nieprawidłowe wartości progów")
                 return
-            dialog.destroy()
+            self.destroy()
             self.hough_apply(method, th1, th2)
 
-        dialog = tk.Toplevel(self)
-        dialog.title("Hough - detekcja krawędzi")
-        tk.Label(dialog, text="Metoda:").grid(row=0, column=0)
+        self.title("Hough - detekcja krawędzi")
+        tk.Label(self, text="Metoda:").grid(row=0, column=0)
         method_var = tk.StringVar(value="lines")
-        tk.OptionMenu(dialog, method_var, "lines", "circles").grid(row=0, column=1)
-        tk.Label(dialog, text="Canny th1:").grid(row=1, column=0);
-        th1_e = tk.Entry(dialog);
+        tk.OptionMenu(self, method_var, "lines", "circles").grid(row=0, column=1)
+        tk.Label(self, text="Canny th1:").grid(row=1, column=0);
+        th1_e = tk.Entry(self);
         th1_e.insert(0, "50");
         th1_e.grid(row=1, column=1)
-        tk.Label(dialog, text="Canny th2:").grid(row=2, column=0);
-        th2_e = tk.Entry(dialog);
+        tk.Label(self, text="Canny th2:").grid(row=2, column=0);
+        th2_e = tk.Entry(self);
         th2_e.insert(0, "150");
         th2_e.grid(row=2, column=1)
-        tk.Button(dialog, text="OK", command=on_ok).grid(row=3, column=0, pady=6)
-        tk.Button(dialog, text="Anuluj", command=dialog.destroy).grid(row=3, column=1, pady=6)
-        dialog.transient(self);
-        dialog.grab_set();
-        dialog.focus_set()
+        tk.Button(self, text="OK", command=on_ok).grid(row=3, column=0, pady=6)
+        tk.Button(self, text="Anuluj", command=self.destroy).grid(row=3, column=1, pady=6)
+        self.transient(self);
+        self.grab_set();
+        self.focus_set()
 
     def hough_apply(self, method, th1, th2):
-        img = self.ensure_grayscale(self.original_image)
+        from ImageWindow import ImageWindow
+        img = self.master.ensure_grayscale(self.master.original_image)
         if img is None:
             return
         edges = cv2.Canny(img, th1, th2)
@@ -298,6 +329,6 @@ class Processing:
                 for c in circles[0, :]:
                     cv2.circle(vis, (c[0], c[1]), c[2], (0, 255, 0), 2)
                     cv2.circle(vis, (c[0], c[1]), 2, (0, 0, 255), 3)
-        ImageWindow(self.master, vis).title(f"Hough {method} - {self.title()}")
+        ImageWindow(self.master, vis).title(f"Hough {method} - {self.master.title()}")
 
 
