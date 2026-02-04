@@ -35,6 +35,7 @@ class Processing(tk.Toplevel):
         stretched = ((img - min_val) / (max_val - min_val) * 255).astype(np.uint8)
         new_win = ImageWindow(self.master, stretched)
         new_win.title(f"Rozciąganie - {self.master.title()}")
+        self.destroy()
 
     def linear_stretch_clip(self):
         from ImageWindow import ImageWindow
@@ -46,6 +47,7 @@ class Processing(tk.Toplevel):
         stretched = ((clipped - low) / (high - low) * 255).astype(np.uint8)
         new_win = ImageWindow(self.master, stretched)
         new_win.title(f"Rozciąganie z przesyceniem - {self.master.title()}")
+        self.destroy()
 
     def histogram_stretch_dialog(self):
         if self.master.original_image is None:
@@ -112,6 +114,7 @@ class Processing(tk.Toplevel):
         equalized = cv2.equalizeHist(img)
         new_win = ImageWindow(self.master, equalized)
         new_win.title(f"Equalizacja - {self.master.title()}")
+        self.destroy()
 
     def threshold_dialog(self):
         if self.master.original_image is None:
