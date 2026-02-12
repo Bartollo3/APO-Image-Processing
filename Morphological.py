@@ -63,7 +63,7 @@ class Morphological (tk.Toplevel):
         iter_e.grid(row=1, column=1)
         tk.Button(self, text="OK", command=on_ok).grid(row=2, column=0, pady=6)
         tk.Button(self, text="Anuluj", command=self.destroy).grid(row=2, column=1, pady=6)
-        self.transient(self)
+        self.transient(self.master)
         self.grab_set()
         self.focus_set()
 
@@ -72,21 +72,16 @@ class Morphological (tk.Toplevel):
         img = self.master.ensure_grayscale(self.master.original_image)
         if img is None:
             return
-        if shape == "square":
-            se = np.ones((3, 3), dtype=np.uint8)
-        else:
-            se = cv2.getStructuringElement(cv2.MORPH_CROSS, (3, 3))
-        match shape:
-            case "kwadrat":
-                self.get_structuring_element()
-        if op == 'erode':
-            res = cv2.erode(img, se, iterations=iterations)
-        elif op == 'dilate':
-            res = cv2.dilate(img, se, iterations=iterations)
-        elif op == 'open':
-            res = cv2.morphologyEx(img, cv2.MORPH_OPEN, se, iterations=iterations)
-        else:
-            res = cv2.morphologyEx(img, cv2.MORPH_CLOSE, se, iterations=iterations)
+        structuring_element = self.get_structuring_element(shape, 3)
+        match op:
+            case "erode":
+                res = cv2.erode(img, structuring_element, iterations=iterations)
+            case "dilate":
+                res = cv2.dilate(img, structuring_element, iterations=iterations)
+            case "open":
+                res = cv2.morphologyEx(img, cv2.MORPH_OPEN, structuring_element, iterations=iterations)
+            case "close":
+                res = cv2.morphologyEx(img, cv2.MORPH_CLOSE, structuring_element, iterations=iterations)
         ImageWindow(self.master, res).title(f"Morfologia {op} - {self.master.title()}")
 
     #Wybór opcji rekonstrukcji
